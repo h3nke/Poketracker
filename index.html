@@ -2,38 +2,144 @@
 <html lang="sv">
 <head>
     <meta charset="UTF-8">
-    <title>Min Pokémon Samling (Cloud Sync)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokétracker</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* Samma snygga design som tidigare */
-        body { font-family: sans-serif; background: #f0f0f0; padding: 20px; }
-        .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
-        header { text-align: center; border-bottom: 2px solid #3b4cca; margin-bottom: 20px; }
-        .tracker { background: #ffde00; padding: 10px; border-radius: 5px; display: inline-block; margin: 10px 0; font-weight: bold; }
+        :root {
+            --pkmn-blue: #3b4cca;
+            --pkmn-red: #ff1f1f;
+            --bg-color: #f4f4f4;
+            --text-main: #333;
+            --border-color: #ddd;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 10px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 20px auto;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        header { text-align: center; margin-bottom: 20px; }
+        h1 { color: var(--pkmn-blue); margin-bottom: 20px; }
+
+        /* --- GENERATION NAVIGATION --- */
+        .gen-nav {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            border: 2px solid var(--pkmn-blue);
+            background: white;
+            color: var(--pkmn-blue);
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .nav-btn.active {
+            background: var(--pkmn-blue);
+            color: white;
+        }
+
+        .nav-btn:hover { background: #f0f2ff; }
+        .nav-btn.active:hover { background: #2a38b1; }
+
+        /* --- PROGRESS DASHBOARD --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .stat-item { font-size: 0.85rem; }
+        .stat-label { display: flex; justify-content: space-between; margin-bottom: 5px; font-weight: bold; }
+        
+        .progress-bar {
+            height: 10px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #4caf50;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        /* --- TABELL & SÖK --- */
+        #searchInput {
+            width: 100%;
+            max-width: 500px;
+            padding: 12px 20px;
+            border: 2px solid var(--border-color);
+            border-radius: 25px;
+            margin-bottom: 20px;
+        }
+
         table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 10px; border-bottom: 1px solid #ddd; text-align: left; }
-        img { width: 50px; }
-        .comment-input { width: 90%; padding: 5px; }
-        #searchInput { width: 100%; padding: 10px; margin-bottom: 15px; box-sizing: border-box; }
+        th { text-align: left; padding: 12px; border-bottom: 2px solid #eee; color: #888; font-size: 0.8rem; text-transform: uppercase; }
+        td { padding: 10px; border-bottom: 1px solid #eee; }
+        .inf-name { font-weight: bold; }
+        
+        /* Type Badges (Samma som tidigare) */
+        .type-badge { display: inline-block; padding: 3px 8px; border-radius: 4px; color: white; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; margin-right: 4px; width: 55px; text-align: center; }
+        .normal { background: #aa9; } .fire { background: #f42; } .water { background: #39f; } .grass { background: #7c5; } .electric { background: #fc3; } .ice { background: #6cf; } .fighting { background: #b54; } .poison { background: #a59; } .ground { background: #db5; } .flying { background: #89f; } .psychic { background: #f59; } .bug { background: #a82; } .rock { background: #b8a; } .ghost { background: #76b; } .dragon { background: #76e; } .dark { background: #754; } .steel { background: #aab; } .fairy { background: #e9e; }
+
+        @media (max-width: 600px) { .hide-mobile { display: none; } }
     </style>
 </head>
 <body>
 
 <div class="container">
     <header>
-        <h1>Pokémon Cloud Tracker</h1>
-        <div class="tracker" id="trackerDisplay">Ansluter till databas...</div>
-        <input type="text" id="searchInput" placeholder="Sök namn eller nummer...">
+        <h1>Pokétracker</h1>
+        
+        <div class="stats-grid" id="statsGrid">
+            </div>
+
+        <div class="gen-nav">
+            <button class="nav-btn active" onclick="filterGen('all', this)">Alla</button>
+            <button class="nav-btn" onclick="filterGen('gen1', this)">Gen 1</button>
+            <button class="nav-btn" onclick="filterGen('gen2', this)">Gen 2</button>
+            <button class="nav-btn" onclick="filterGen('gen3', this)">Gen 3</button>
+            <button class="nav-btn" onclick="filterGen('gen4', this)">Gen 4</button>
+        </div>
+
+        <input type="text" id="searchInput" placeholder="Sök namn, nummer eller typ...">
     </header>
 
-    <table id="pokeTable">
+    <table>
         <thead>
             <tr>
                 <th>#</th>
                 <th>Bild</th>
                 <th>Namn</th>
+                <th class="hide-mobile">Typ</th>
                 <th>Äger</th>
-                <th>Kommentar</th>
+                <th>Notering</th>
             </tr>
         </thead>
         <tbody id="pokeList"></tbody>
@@ -44,97 +150,120 @@
     // --- KONFIGURATION ---
     const SUPABASE_URL = 'https://socixgiusmrnejuyeyha.supabase.co'; // Klistra in din URL igen
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvY2l4Z2l1c21ybmVqdXlleWhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3MjY0MjUsImV4cCI6MjA4NDMwMjQyNX0.XZ4pQcji0mk8A5-FmBvge_ENg4mGd5EU_c8pKWX5oZY'; // Klistra in din nyckel igen
-    
-    // HÄR VAR FELET: Vi byter namn till supabaseClient för att undvika krocken
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const TOTAL_POKEMON = 493;
+    const GEN_RANGES = {
+        gen1: [1, 151],
+        gen2: [152, 251],
+        gen3: [252, 386],
+        gen4: [387, 493]
+    };
+
     let cloudData = {};
+    let allPokemonData = [];
+    let currentFilter = 'all';
 
     async function init() {
-        // Vi använder supabaseClient här istället
-        const { data, error } = await supabaseClient.from('pokemon_collection').select('*');
-        
-        if (error) {
-            console.error("Fel vid hämtning:", error);
-            document.getElementById('trackerDisplay').textContent = "Fel vid anslutning (se konsol)";
-            document.getElementById('trackerDisplay').style.backgroundColor = "#ff5555";
-        } else {
-            // Gör om listan från Supabase till ett smidigt objekt
-            if(data) {
-                data.forEach(item => {
-                    cloudData[item.pokemon_id] = item;
-                });
-            }
-        }
+        const { data } = await supabaseClient.from('pokemon_collection').select('*');
+        if (data) data.forEach(item => cloudData[item.pokemon_id] = item);
 
-        // Hämta Pokémon-namn från PokéAPI
-        const response = await fetch(`https://pokeapi.co/api/v2/pokemon?limit=${TOTAL_POKEMON}`);
-        const pokeData = await response.json();
-        
-        renderTable(pokeData.results);
-        updateTracker();
+        try {
+            const promises = [];
+            for(let i = 1; i <= 493; i++) {
+                promises.push(fetch(`https://pokeapi.co/api/v2/pokemon/${i}`).then(res => res.json()));
+            }
+            allPokemonData = await Promise.all(promises);
+            renderTable();
+            updateStats();
+        } catch (err) { console.error(err); }
     }
 
-    function renderTable(pokemons) {
+    function renderTable() {
         const pokeList = document.getElementById('pokeList');
         let html = '';
         
-        pokemons.forEach((pokemon, index) => {
-            const id = index + 1;
+        allPokemonData.forEach((pkmn) => {
+            const id = pkmn.id;
             const isChecked = cloudData[id]?.owned ? 'checked' : '';
             const comment = cloudData[id]?.comment || '';
-            const name = pokemon.name.charAt(0).toUpperCase() + pokemon.name.slice(1);
-            const imgUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+            const name = pkmn.name.charAt(0).toUpperCase() + pkmn.name.slice(1);
+            const typesHtml = pkmn.types.map(t => `<span class="type-badge ${t.type.name}">${t.type.name}</span>`).join('');
+            
+            // Bestäm generation för filtrering
+            let gen = "";
+            if (id <= 151) gen = "gen1";
+            else if (id <= 251) gen = "gen2";
+            else if (id <= 386) gen = "gen3";
+            else gen = "gen4";
 
             html += `
-                <tr class="poke-row" data-name="${name.toLowerCase()}" data-id="${id}">
+                <tr class="poke-row" data-gen="${gen}" data-search="${name.toLowerCase()} ${id} ${pkmn.types.map(t=>t.type.name).join(' ')}">
                     <td>#${id}</td>
-                    <td><img src="${imgUrl}" loading="lazy"></td>
-                    <td><strong>${name}</strong></td>
+                    <td><img src="${pkmn.sprites.front_default}" loading="lazy"></td>
+                    <td class="inf-name">${name}</td>
+                    <td class="hide-mobile">${typesHtml}</td>
                     <td><input type="checkbox" onchange="updatePokemon(${id}, 'owned', this.checked)" ${isChecked}></td>
                     <td><input type="text" class="comment-input" value="${comment}" onchange="updatePokemon(${id}, 'comment', this.value)"></td>
                 </tr>
             `;
         });
         pokeList.innerHTML = html;
+        applyFilters();
     }
 
-    // Funktion som pratar med Supabase
     async function updatePokemon(id, field, value) {
         const updateObj = { pokemon_id: id };
         updateObj[field] = value;
-
-        // Vi använder supabaseClient här också
-        const { error } = await supabaseClient
-            .from('pokemon_collection')
-            .upsert(updateObj, { onConflict: 'pokemon_id' });
-
-        if (error) console.error("Kunde inte spara:", error);
-        
+        await supabaseClient.from('pokemon_collection').upsert(updateObj, { onConflict: 'pokemon_id' });
         cloudData[id] = { ...cloudData[id], ...updateObj };
-        updateTracker();
+        updateStats();
     }
 
-    function updateTracker() {
-        let count = 0;
-        for (let id in cloudData) {
-            if (cloudData[id].owned) count++;
-        }
-        document.getElementById('trackerDisplay').textContent = `Du har samlat ${count} av ${TOTAL_POKEMON}`;
-    }
+    function updateStats() {
+        const statsGrid = document.getElementById('statsGrid');
+        let html = '';
 
-    // Sökfunktion
-    document.getElementById('searchInput').addEventListener('keyup', (e) => {
-        const term = e.target.value.toLowerCase();
-        document.querySelectorAll('.poke-row').forEach(row => {
-            const match = row.getAttribute('data-name').includes(term) || row.getAttribute('data-id').includes(term);
-            row.style.display = match ? '' : 'none';
+        Object.keys(GEN_RANGES).forEach(key => {
+            const range = GEN_RANGES[key];
+            const total = range[1] - range[0] + 1;
+            let owned = 0;
+            for (let i = range[0]; i <= range[1]; i++) {
+                if (cloudData[i]?.owned) owned++;
+            }
+            const pct = ((owned / total) * 100).toFixed(0);
+            
+            html += `
+                <div class="stat-item">
+                    <div class="stat-label">
+                        <span>${key.toUpperCase().replace('GEN', 'Gen ')}</span>
+                        <span>${owned}/${total} (${pct}%)</span>
+                    </div>
+                    <div class="progress-bar"><div class="progress-fill" style="width: ${pct}%"></div></div>
+                </div>
+            `;
         });
-    });
+        statsGrid.innerHTML = html;
+    }
 
+    function filterGen(gen, btn) {
+        currentFilter = gen;
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        applyFilters();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function applyFilters() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        document.querySelectorAll('.poke-row').forEach(row => {
+            const genMatch = currentFilter === 'all' || row.getAttribute('data-gen') === currentFilter;
+            const searchMatch = row.getAttribute('data-search').includes(searchTerm);
+            row.style.display = (genMatch && searchMatch) ? '' : 'none';
+        });
+    }
+
+    document.getElementById('searchInput').addEventListener('keyup', applyFilters);
     init();
 </script>
 </body>
 </html>
-

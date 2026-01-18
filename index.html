@@ -41,28 +41,34 @@
 </div>
 
 <script>
-    // --- KONFIGURATION (Fyll i dina uppgifter här!) ---
-    const SUPABASE_URL = 'https://socixgiusmrnejuyeyha.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_uHVRcWZxwpZT1O7DokUHEw_nnhx9gMt';
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // --- KONFIGURATION ---
+    const SUPABASE_URL = 'https://socixgiusmrnejuyeyha.supabase.co'; // Klistra in din URL igen
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvY2l4Z2l1c21ybmVqdXlleWhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3MjY0MjUsImV4cCI6MjA4NDMwMjQyNX0.XZ4pQcji0mk8A5-FmBvge_ENg4mGd5EU_c8pKWX5oZY'; // Klistra in din nyckel igen
+    
+    // HÄR VAR FELET: Vi byter namn till supabaseClient för att undvika krocken
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     const TOTAL_POKEMON = 493;
     let cloudData = {};
 
     async function init() {
-        // 1. Hämta data från Supabase
-        const { data, error } = await supabase.from('pokemon_collection').select('*');
+        // Vi använder supabaseClient här istället
+        const { data, error } = await supabaseClient.from('pokemon_collection').select('*');
         
         if (error) {
             console.error("Fel vid hämtning:", error);
+            document.getElementById('trackerDisplay').textContent = "Fel vid anslutning (se konsol)";
+            document.getElementById('trackerDisplay').style.backgroundColor = "#ff5555";
         } else {
             // Gör om listan från Supabase till ett smidigt objekt
-            data.forEach(item => {
-                cloudData[item.pokemon_id] = item;
-            });
+            if(data) {
+                data.forEach(item => {
+                    cloudData[item.pokemon_id] = item;
+                });
+            }
         }
 
-        // 2. Hämta Pokémon-namn från PokéAPI
+        // Hämta Pokémon-namn från PokéAPI
         const response = await fetch(`https://pokeapi.co/api/v2/pokemon?limit=${TOTAL_POKEMON}`);
         const pokeData = await response.json();
         
@@ -99,8 +105,8 @@
         const updateObj = { pokemon_id: id };
         updateObj[field] = value;
 
-        // "Upsert" betyder: Uppdatera om den finns, annars skapa ny rad
-        const { error } = await supabase
+        // Vi använder supabaseClient här också
+        const { error } = await supabaseClient
             .from('pokemon_collection')
             .upsert(updateObj, { onConflict: 'pokemon_id' });
 
@@ -131,3 +137,4 @@
 </script>
 </body>
 </html>
+
